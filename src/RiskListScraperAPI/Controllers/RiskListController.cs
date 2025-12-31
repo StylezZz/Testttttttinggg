@@ -108,6 +108,144 @@ public class RiskListController : ControllerBase
     }
 
     /// <summary>
+    /// Search in OFAC (Office of Foreign Assets Control) database
+    /// </summary>
+    /// <param name="q">Entity name to search</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Search results from OFAC</returns>
+    [HttpGet("ofac")]
+    [ProducesResponseType(typeof(ApiResponse<SourceResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SearchOfac(
+        [FromQuery] string q,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
+        {
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "Invalid query",
+                Errors = new List<string> { "Query parameter 'q' must be at least 2 characters long" }
+            });
+        }
+
+        try
+        {
+            var result = await _searchService.SearchSourceAsync("OFAC", q, cancellationToken);
+
+            return Ok(new ApiResponse<SourceResult>
+            {
+                Success = true,
+                Message = $"OFAC search completed. Found {result.HitCount} results.",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching OFAC for entity: {EntityName}", q);
+            return StatusCode(500, new ApiResponse<object>
+            {
+                Success = false,
+                Message = "An error occurred while searching OFAC",
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Search in World Bank debarred firms database
+    /// </summary>
+    /// <param name="q">Entity name to search</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Search results from World Bank</returns>
+    [HttpGet("worldbank")]
+    [ProducesResponseType(typeof(ApiResponse<SourceResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SearchWorldBank(
+        [FromQuery] string q,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
+        {
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "Invalid query",
+                Errors = new List<string> { "Query parameter 'q' must be at least 2 characters long" }
+            });
+        }
+
+        try
+        {
+            var result = await _searchService.SearchSourceAsync("World Bank", q, cancellationToken);
+
+            return Ok(new ApiResponse<SourceResult>
+            {
+                Success = true,
+                Message = $"World Bank search completed. Found {result.HitCount} results.",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching World Bank for entity: {EntityName}", q);
+            return StatusCode(500, new ApiResponse<object>
+            {
+                Success = false,
+                Message = "An error occurred while searching World Bank",
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Search in ICIJ Offshore Leaks database
+    /// </summary>
+    /// <param name="q">Entity name to search</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Search results from Offshore Leaks</returns>
+    [HttpGet("offshoreleaks")]
+    [ProducesResponseType(typeof(ApiResponse<SourceResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SearchOffshoreLeaks(
+        [FromQuery] string q,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
+        {
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "Invalid query",
+                Errors = new List<string> { "Query parameter 'q' must be at least 2 characters long" }
+            });
+        }
+
+        try
+        {
+            var result = await _searchService.SearchSourceAsync("Offshore Leaks Database", q, cancellationToken);
+
+            return Ok(new ApiResponse<SourceResult>
+            {
+                Success = true,
+                Message = $"Offshore Leaks search completed. Found {result.HitCount} results.",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching Offshore Leaks for entity: {EntityName}", q);
+            return StatusCode(500, new ApiResponse<object>
+            {
+                Success = false,
+                Message = "An error occurred while searching Offshore Leaks",
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
+
+    /// <summary>
     /// Health check endpoint
     /// </summary>
     /// <returns>API health status</returns>

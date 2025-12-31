@@ -142,7 +142,28 @@ Headers:
   X-API-Key: dev-api-key-12345
 ```
 
-#### 3. Buscar Entidad
+#### 3. Buscar en OFAC
+```http
+GET /api/RiskList/ofac?q=PDVSA
+Headers:
+  X-API-Key: dev-api-key-12345
+```
+
+#### 4. Buscar en World Bank
+```http
+GET /api/RiskList/worldbank?q=PDVSA
+Headers:
+  X-API-Key: dev-api-key-12345
+```
+
+#### 5. Buscar en Offshore Leaks
+```http
+GET /api/RiskList/offshoreleaks?q=Lima
+Headers:
+  X-API-Key: dev-api-key-12345
+```
+
+#### 6. Buscar en Todas las Fuentes (Legacy)
 ```http
 POST /api/RiskList/search
 Headers:
@@ -156,7 +177,32 @@ Body:
 }
 ```
 
-### Respuesta Exitosa
+### Respuesta Exitosa - Endpoint Específico (Recomendado)
+
+```json
+{
+  "success": true,
+  "message": "OFAC search completed. Found 3 results.",
+  "data": {
+    "source": "OFAC",
+    "hitCount": 3,
+    "records": [
+      {
+        "attributes": {
+          "Name": "PETROLEOS DE VENEZUELA S.A.",
+          "Address": "Caracas, Venezuela",
+          "Type": "Entity",
+          "Programs": "VENEZUELA",
+          "List": "SDN",
+          "Score": "100"
+        }
+      }
+    ]
+  }
+}
+```
+
+### Respuesta Exitosa - Búsqueda en Todas las Fuentes (Legacy)
 
 ```json
 {
@@ -205,8 +251,22 @@ Body:
 
 La API usa autenticación basada en API Key mediante el header `X-API-Key`.
 
-Ejemplo:
+### Ejemplos de Uso con curl
+
 ```bash
+# Buscar en OFAC
+curl -X GET "http://localhost:5000/api/RiskList/ofac?q=PDVSA" \
+  -H "X-API-Key: dev-api-key-12345"
+
+# Buscar en World Bank
+curl -X GET "http://localhost:5000/api/RiskList/worldbank?q=Company" \
+  -H "X-API-Key: dev-api-key-12345"
+
+# Buscar en Offshore Leaks
+curl -X GET "http://localhost:5000/api/RiskList/offshoreleaks?q=Lima" \
+  -H "X-API-Key: dev-api-key-12345"
+
+# Buscar en todas las fuentes (legacy)
 curl -X POST "http://localhost:5000/api/RiskList/search" \
   -H "X-API-Key: dev-api-key-12345" \
   -H "Content-Type: application/json" \
@@ -353,19 +413,40 @@ docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/risk-list-scraper-api:l
 
 ## 🧪 Testing
 
+### Ventajas de los Endpoints Específicos por Fuente
+
+✅ **Mejor para Testing**: Cada fuente se puede probar independientemente
+✅ **Más Rápido**: No esperas a que todas las fuentes respondan
+✅ **Más RESTful**: URLs semánticas y predecibles
+✅ **Mejor Debugging**: Errores aislados por fuente
+✅ **Rate Limiting Granular**: Puedes aplicar límites específicos por fuente
+✅ **Caching Más Efectivo**: Cache por fuente individual
+
 ### Ejecutar con curl
 
 ```bash
 # Health check
 curl http://localhost:5000/health
 
-# Búsqueda básica
+# Buscar solo en OFAC (Recomendado)
+curl -X GET "http://localhost:5000/api/RiskList/ofac?q=PDVSA" \
+  -H "X-API-Key: dev-api-key-12345"
+
+# Buscar solo en World Bank (Recomendado)
+curl -X GET "http://localhost:5000/api/RiskList/worldbank?q=Company" \
+  -H "X-API-Key: dev-api-key-12345"
+
+# Buscar solo en Offshore Leaks (Recomendado)
+curl -X GET "http://localhost:5000/api/RiskList/offshoreleaks?q=Lima" \
+  -H "X-API-Key: dev-api-key-12345"
+
+# Búsqueda en todas las fuentes (Legacy - más lento)
 curl -X POST "http://localhost:5000/api/RiskList/search" \
   -H "X-API-Key: dev-api-key-12345" \
   -H "Content-Type: application/json" \
   -d '{"entityName": "PDVSA"}'
 
-# Búsqueda con fuentes específicas
+# Búsqueda con fuentes específicas (Legacy)
 curl -X POST "http://localhost:5000/api/RiskList/search" \
   -H "X-API-Key: dev-api-key-12345" \
   -H "Content-Type: application/json" \

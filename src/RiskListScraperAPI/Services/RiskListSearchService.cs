@@ -52,4 +52,36 @@ public class RiskListSearchService
 
         return response;
     }
+
+    public async Task<SourceResult> SearchSourceAsync(
+        string sourceName,
+        string entityName,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Starting search for entity: {EntityName} in source: {SourceName}", entityName, sourceName);
+
+        var scraper = _scraperServices.FirstOrDefault(s =>
+            s.GetSourceName().Equals(sourceName, StringComparison.OrdinalIgnoreCase));
+
+        if (scraper == null)
+        {
+            _logger.LogWarning("Source not found: {SourceName}", sourceName);
+            return new SourceResult
+            {
+                Source = sourceName,
+                HitCount = 0,
+                Records = new List<EntityRecord>()
+            };
+        }
+
+        var result = await scraper.SearchAsync(entityName, cancellationToken);
+
+        _logger.LogInformation(
+            "Search completed for entity: {EntityName} in source: {SourceName}. Hits: {HitCount}",
+            entityName,
+            sourceName,
+            result.HitCount);
+
+        return result;
+    }
 }
