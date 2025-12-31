@@ -1,4 +1,4 @@
-using HtmlAgilityPack;
+using Microsoft.Playwright;
 using RiskListScraperAPI.Models;
 using System.Web;
 
@@ -6,14 +6,11 @@ namespace RiskListScraperAPI.Services;
 
 public class OffshoreLeaksScraperService : IScraperService
 {
-    private readonly HttpClient _httpClient;
     private readonly ILogger<OffshoreLeaksScraperService> _logger;
     private const string BASE_URL = "https://offshoreleaks.icij.org";
 
-    public OffshoreLeaksScraperService(IHttpClientFactory httpClientFactory, ILogger<OffshoreLeaksScraperService> logger)
+    public OffshoreLeaksScraperService(ILogger<OffshoreLeaksScraperService> logger)
     {
-        _httpClient = httpClientFactory.CreateClient();
-        _httpClient.Timeout = TimeSpan.FromSeconds(30);
         _logger = logger;
     }
 
@@ -28,50 +25,111 @@ public class OffshoreLeaksScraperService : IScraperService
             Records = new List<EntityRecord>()
         };
 
+        IPlaywright? playwright = null;
+        IBrowser? browser = null;
+
         try
         {
-            _logger.LogInformation("Searching Offshore Leaks for entity: {EntityName}", entityName);
+            _logger.LogInformation("Searching Offshore Leaks for entity: {EntityName} using Playwright", entityName);
 
-            // Offshore Leaks search
-            var searchUrl = $"{BASE_URL}/search?q={HttpUtility.UrlEncode(entityName)}";
+            // Initialize Playwright
+            playwright = await Playwright.CreateAsync();
 
-            var response = await _httpClient.GetAsync(searchUrl, cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            var htmlContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            var htmlDoc = new HtmlDocument();
-            htmlDoc.LoadHtml(htmlContent);
-
-            // Parse results - Offshore Leaks uses a card/list structure
-            var resultNodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'result-item')]");
-
-            if (resultNodes != null && resultNodes.Count > 0)
+            // Launch browser in headless mode
+            browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
             {
-                foreach (var node in resultNodes)
-                {
-                    var record = new EntityRecord
-                    {
-                        Attributes = new Dictionary<string, string>
-                        {
-                            { "Entity", CleanText(node.SelectSingleNode(".//h3 | .//h4")?.InnerText) },
-                            { "Jurisdiction", CleanText(node.SelectSingleNode(".//*[contains(text(), 'Jurisdiction')]/..//span")?.InnerText) },
-                            { "Linked To", CleanText(node.SelectSingleNode(".//*[contains(text(), 'Linked')]/..//span")?.InnerText) },
-                            { "Data From", CleanText(node.SelectSingleNode(".//*[contains(text(), 'Data')]/..//span")?.InnerText) }
-                        }
-                    };
+                Headless = true
+            });
 
-                    result.Records.Add(record);
+            // Create a new page
+            var page = await browser.NewPageAsync();
+
+            // Navigate to search URL
+            var searchUrl = $"{BASE_URL}/search?q={HttpUtility.UrlEncode(entityName)}";
+            await page.GotoAsync(searchUrl, new PageGotoOptions
+            {
+                WaitUntil = WaitUntilState.NetworkIdle,
+                Timeout = 60000 // 60 seconds timeout
+            });
+
+            // Wait for search results to load - the page loads dynamically with JavaScript
+            // Wait for the results container to be visible
+            try
+            {
+                await page.WaitForSelectorAsync(".search-result, .result-entity, [class*='result']", new PageWaitForSelectorOptions
+                {
+                    Timeout = 30000 // 30 seconds
+                });
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogWarning("No results found or timeout waiting for results for entity: {EntityName}", entityName);
+                return result;
+            }
+
+            // Extract results from the DOM
+            // ICIJ Offshore Leaks typically shows results in a list/card format
+            var resultElements = await page.QuerySelectorAllAsync(".search-result, .result-entity, [class*='SearchResult']");
+
+            if (resultElements.Any())
+            {
+                foreach (var element in resultElements)
+                {
+                    try
+                    {
+                        // Extract Entity name
+                        var entityElement = await element.QuerySelectorAsync("h3, h4, .entity-name, [class*='entityName'], [class*='EntityName']");
+                        var entity = entityElement != null ? await entityElement.InnerTextAsync() : "";
+
+                        // Extract Jurisdiction
+                        var jurisdictionElement = await element.QuerySelectorAsync("[class*='jurisdiction'], dt:has-text('Jurisdiction') + dd, .country");
+                        var jurisdiction = jurisdictionElement != null ? await jurisdictionElement.InnerTextAsync() : "";
+
+                        // Extract Linked To
+                        var linkedToElement = await element.QuerySelectorAsync("[class*='linked'], dt:has-text('Linked') + dd, [class*='connection']");
+                        var linkedTo = linkedToElement != null ? await linkedToElement.InnerTextAsync() : "";
+
+                        // Extract Data From
+                        var dataFromElement = await element.QuerySelectorAsync("[class*='source'], dt:has-text('Data') + dd, [class*='dataset']");
+                        var dataFrom = dataFromElement != null ? await dataFromElement.InnerTextAsync() : "";
+
+                        var record = new EntityRecord
+                        {
+                            Attributes = new Dictionary<string, string>
+                            {
+                                { "Entity", CleanText(entity) },
+                                { "Jurisdiction", CleanText(jurisdiction) },
+                                { "Linked To", CleanText(linkedTo) },
+                                { "Data From", CleanText(dataFrom) }
+                            }
+                        };
+
+                        result.Records.Add(record);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error parsing individual result element");
+                        continue;
+                    }
                 }
 
                 result.HitCount = result.Records.Count;
             }
 
-            _logger.LogInformation("Offshore Leaks search completed. Found {Count} results", result.HitCount);
+            _logger.LogInformation("Offshore Leaks search completed using Playwright. Found {Count} results", result.HitCount);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error searching Offshore Leaks for entity: {EntityName}", entityName);
-            // Don't throw - return empty result to allow other sources to continue
+        }
+        finally
+        {
+            // Cleanup
+            if (browser != null)
+            {
+                await browser.CloseAsync();
+            }
+            playwright?.Dispose();
         }
 
         return result;

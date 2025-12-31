@@ -7,8 +7,39 @@ API REST para búsqueda automatizada de entidades en listas de alto riesgo media
 Esta API permite buscar entidades (empresas o personas) en las siguientes bases de datos de alto riesgo:
 
 - **OFAC** (Office of Foreign Assets Control): Lista de sanciones del Tesoro de Estados Unidos
-- **World Bank**: Lista de empresas inhabilitadas del Banco Mundial
-- **Offshore Leaks Database**: Base de datos de paraísos fiscales del ICIJ
+- **World Bank**: Lista de empresas inhabilitadas del Banco Mundial (API oficial)
+- **Offshore Leaks Database**: Base de datos de paraísos fiscales del ICIJ (Playwright scraping)
+
+## 🔍 Fuentes de Datos y Tecnologías
+
+### OFAC (Office of Foreign Assets Control)
+- **Tecnología**: HtmlAgilityPack (scraping estático)
+- **URL**: https://sanctionssearch.ofac.treas.gov/
+- **Método**: Web scraping
+
+### World Bank - Debarred Firms
+- **Tecnología**: API REST oficial
+- **URL**: https://apigwext.worldbank.org/dvsvc/v1.0/json/APPLICATION/ADOBE_EXPRNCE_MGR/FIRM/SANCTIONED_FIRM
+- **Método**: Llamada API con autenticación por API Key
+- **Ventajas**:
+  - Datos estructurados en JSON
+  - Mayor velocidad y confiabilidad
+  - Menos propenso a fallos por cambios en la estructura
+
+### ICIJ Offshore Leaks Database
+- **Tecnología**: Microsoft Playwright (scraping dinámico)
+- **URL**: https://offshoreleaks.icij.org/search?q={query}
+- **Método**: Web scraping con renderizado JavaScript
+- **Datos extraídos**:
+  - Entity (nombre de la entidad)
+  - Jurisdiction (jurisdicción)
+  - Linked To (vinculado a)
+  - Data From (fuente de datos)
+- **Por qué Playwright**: La página carga datos dinámicamente con JavaScript y no expone una API pública. HttpClient solo descarga el HTML inicial sin ejecutar JavaScript, por lo que es necesario usar un navegador headless que renderice el DOM completo.
+
+### Ejemplo de código Playwright
+
+Ver archivo completo en `examples/OffshoreLeaksPlaywrightExample.cs` para un ejemplo standalone de cómo usar Playwright para scraping.
 
 ## 🚀 Características
 
@@ -25,7 +56,8 @@ Esta API permite buscar entidades (empresas o personas) en las siguientes bases 
 
 - **.NET 8.0** - Framework principal
 - **ASP.NET Core** - Web API
-- **HtmlAgilityPack** - Web scraping
+- **Microsoft Playwright** - Web scraping dinámico (JavaScript rendering)
+- **HtmlAgilityPack** - Web scraping estático
 - **Swagger/OpenAPI** - Documentación
 - **Custom Middleware** - Rate limiting y autenticación
 
@@ -34,6 +66,7 @@ Esta API permite buscar entidades (empresas o personas) en las siguientes bases 
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) o [Visual Studio Code](https://code.visualstudio.com/)
 - [Postman](https://www.postman.com/downloads/) (para pruebas)
+- **Playwright Browsers** - Requerido para scraping de Offshore Leaks (ver instrucciones de instalación)
 
 ## 🔧 Instalación y Configuración
 
@@ -51,7 +84,26 @@ cd src/RiskListScraperAPI
 dotnet restore
 ```
 
-### 3. Configurar API Key
+### 3. Instalar navegadores de Playwright
+
+**IMPORTANTE**: Playwright requiere la instalación de navegadores para el scraping dinámico de Offshore Leaks.
+
+```bash
+# Opción 1: Instalar herramienta global
+dotnet tool install --global Microsoft.Playwright.CLI
+playwright install
+
+# Opción 2: Después de compilar
+dotnet build
+pwsh bin/Debug/net8.0/playwright.ps1 install
+
+# En Linux, también instalar dependencias del sistema
+playwright install-deps
+```
+
+Para más detalles, consulta [PLAYWRIGHT_SETUP.md](PLAYWRIGHT_SETUP.md)
+
+### 4. Configurar API Key
 
 Editar el archivo `appsettings.json` o `appsettings.Development.json`:
 
@@ -63,7 +115,7 @@ Editar el archivo `appsettings.json` o `appsettings.Development.json`:
 
 **IMPORTANTE**: En producción, usa variables de entorno o Azure Key Vault para almacenar el API Key de forma segura.
 
-### 4. Ejecutar la aplicación
+### 5. Ejecutar la aplicación
 
 ```bash
 dotnet run
@@ -331,8 +383,8 @@ Testttttttinggg/
 │       ├── Services/
 │       │   ├── IScraperService.cs
 │       │   ├── OfacScraperService.cs
-│       │   ├── WorldBankScraperService.cs
-│       │   ├── OffshoreLeaksScraperService.cs
+│       │   ├── WorldBankScraperService.cs        # API REST con autenticación
+│       │   ├── OffshoreLeaksScraperService.cs    # Playwright scraping
 │       │   └── RiskListSearchService.cs
 │       ├── Models/
 │       │   ├── SearchRequest.cs
@@ -351,9 +403,12 @@ Testttttttinggg/
 │       ├── appsettings.Development.json
 │       ├── Program.cs
 │       └── RiskListScraperAPI.csproj
+├── examples/
+│   └── OffshoreLeaksPlaywrightExample.cs         # Ejemplo standalone de Playwright
 ├── postman/
 │   ├── RiskListScraperAPI.postman_collection.json
 │   └── RiskListScraperAPI.postman_environment.json
+├── PLAYWRIGHT_SETUP.md                           # Guía de configuración de Playwright
 └── README.md
 ```
 
@@ -403,6 +458,22 @@ Testttttttinggg/
 # macOS: brew install --cask dotnet-sdk
 ```
 
+### Error: "Executable doesn't exist" (Playwright)
+```bash
+# Los navegadores de Playwright no están instalados
+playwright install
+
+# En Linux, también instalar dependencias del sistema
+playwright install-deps chromium
+```
+
+### Error: Timeout en búsquedas de Offshore Leaks
+```bash
+# La página puede tardar en cargar. Aumentar los timeouts en OffshoreLeaksScraperService.cs
+# O verificar tu conexión a internet
+# O ejecutar en modo no-headless para ver qué está pasando (Headless = false)
+```
+
 ### Error: "API Key not configured"
 ```bash
 # Asegúrate de tener configurado el ApiKey en appsettings.json
@@ -412,6 +483,19 @@ Testttttttinggg/
 ```bash
 # Espera el tiempo indicado en el header Retry-After
 # O usa diferentes API Keys para distribuir las llamadas
+```
+
+### Error: "Missing dependencies" en Linux
+```bash
+# Playwright requiere dependencias del sistema en Linux
+sudo playwright install-deps
+
+# O manualmente instalar:
+sudo apt-get install -y \
+    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+    libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
+    libxdamage1 libxfixes3 libxrandr2 libgbm1 \
+    libpango-1.0-0 libcairo2 libasound2
 ```
 
 ## 📝 Licencia
