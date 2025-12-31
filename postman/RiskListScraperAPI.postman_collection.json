@@ -1,0 +1,275 @@
+{
+  "info": {
+    "name": "Risk List Scraper API",
+    "description": "API para búsqueda de entidades en listas de alto riesgo (OFAC, World Bank, Offshore Leaks)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "dev-api-key-12345",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "X-API-Key",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Verifica el estado de salud de la API"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Available Sources",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/RiskList/sources",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "RiskList", "sources"]
+        },
+        "description": "Obtiene la lista de fuentes disponibles para búsqueda"
+      },
+      "response": []
+    },
+    {
+      "name": "Search Entity - All Sources",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"entityName\": \"PDVSA\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/RiskList/search",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "RiskList", "search"]
+        },
+        "description": "Busca una entidad en todas las fuentes disponibles. Ejemplo: PDVSA (empresa venezolana que puede estar en listas de sanciones)"
+      },
+      "response": []
+    },
+    {
+      "name": "Search Entity - Specific Sources",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"entityName\": \"Rosneft\",\n  \"sources\": [\"OFAC\", \"World Bank\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/RiskList/search",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "RiskList", "search"]
+        },
+        "description": "Busca una entidad solo en fuentes específicas. Ejemplo: Rosneft (empresa rusa que puede estar en sanciones)"
+      },
+      "response": []
+    },
+    {
+      "name": "Search Entity - Bank",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"entityName\": \"Bank\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/RiskList/search",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "RiskList", "search"]
+        },
+        "description": "Busca entidades relacionadas con 'Bank' en todas las fuentes"
+      },
+      "response": []
+    },
+    {
+      "name": "Search Entity - Person Name",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"entityName\": \"Vladimir Putin\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/RiskList/search",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "RiskList", "search"]
+        },
+        "description": "Busca una persona en las listas de alto riesgo"
+      },
+      "response": []
+    },
+    {
+      "name": "Search Entity - Invalid (Missing Name)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"entityName\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/RiskList/search",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "RiskList", "search"]
+        },
+        "description": "Ejemplo de solicitud inválida - nombre vacío (debe retornar error 400)"
+      },
+      "response": []
+    },
+    {
+      "name": "Search Entity - Invalid API Key",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "invalid-api-key",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"entityName\": \"Test Entity\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/RiskList/search",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "RiskList", "search"]
+        },
+        "description": "Ejemplo de solicitud con API Key inválida (debe retornar error 401)"
+      },
+      "response": []
+    },
+    {
+      "name": "Search Entity - Missing API Key",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"entityName\": \"Test Entity\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/RiskList/search",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "RiskList", "search"]
+        },
+        "description": "Ejemplo de solicitud sin API Key (debe retornar error 401)"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "dev-api-key-12345",
+      "type": "string"
+    }
+  ]
+}
